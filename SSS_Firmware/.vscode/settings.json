@@ -4,6 +4,14 @@
   "idf.portWin": "COM7",
   "idf.adapterTargetName": "esp32",
   "files.associations": {
-    "adc_cali_scheme.h": "c"
+    "adc_cali_scheme.h": "c",
+    "freertos.h": "c",
+    "adc_oneshot.h": "c",
+    "i2c.h": "c",
+    "cstdint": "c",
+    "array": "c",
+    "string": "c",
+    "string_view": "c",
+    "span": "c"
   }
 }
