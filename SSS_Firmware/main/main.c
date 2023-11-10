@@ -10,10 +10,15 @@
 #include "driver/i2c.h" 
 
 //------------- Constant and Variable Defenitions ---------------//
-#define FSR1_channel            ADC_CHANNEL_6       /*!< GPIO 34 */
-#define FSR2_channel            ADC_CHANNEL_7       /*!< GPIO 35 */
-#define FSR_Transistor_cntrl    32                  /*!< GPIO 32 */
+// FSR Constants
+#define FSR1_channel                ADC_CHANNEL_6   /*!< Attatched to GPIO 34 */
+#define GPIO34                      34              /*!< GPIO 34 */
+#define FSR2_channel                ADC_CHANNEL_7   /*!< Attatched to GPIO 35 */
+#define GPIO35                      35              /*!< GPIO 35 */
+#define FSR_Transistor_cntrl        32              /*!< GPIO 32 */
+#define FSR_SAMPLE_NUM              10              /*!< humber of samples to read from FSR */
 
+// I2C Constants
 #define I2C_MASTER_SCL_IO           22              /*!< GPIO number used for I2C master clock */
 #define I2C_MASTER_SDA_IO           21              /*!< GPIO number used for I2C master data  */
 #define I2C_MASTER_NUM              0               /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
@@ -21,50 +26,119 @@
 #define I2C_MASTER_TX_BUF_DISABLE   0               /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE   0               /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_TIMEOUT_MS       1000            /*!< I2C master timeout in milliseconds */
-#define AMG8833_ADDR 0x69                           /*!< AMG8833 i2c address */
+#define AMG8833_ADDR                0x69            /*!< AMG8833 i2c address */
 
+// Delays and Times
+#define FSR_DEBOUNCE_TIME           300             /*!< Time for FSR to debounce */
+#define TASK_DELETE_WAIT_TIME       100             /*!< Time to wait after task is deleted */
+#define FSR_SENSOR_SETTLE_TIME      3000            /*!< Time to wait for FSR sensor to settle */
+#define FSR_READ_DELAY              100             /*!< Delay between FSR read operations */
+
+// Debug String
 const static char * TAG = "OUTPUT";
 
+// ADC Vars
+adc_oneshot_unit_handle_t adc1_handle;              /*!< Handler for the adc1 unit */
+
+// ISR Vars
+int last_interrupt_time_ticks = 0;                              /*!< Time since last GPIO34 GPIO35 ISR interrupt in ticks */
+
+// Occupancy Vars
+volatile TaskHandle_t occupancy_update__task_handle = NULL;     /*!< Handler for the occupancy_update task */
+bool restart_occupancy_update = false;                          /*!< Status flag for need to reset the occupancy_update task */
+
 //------------- Function Declarations ---------------//
+// ADC Functionality
 adc_oneshot_unit_handle_t setup_ADC1();
 adc_oneshot_unit_handle_t init_ADC1();
 void config_ADC1_channels(adc_oneshot_unit_handle_t);
 int read_ADC_channel(int, adc_oneshot_unit_handle_t, adc_channel_t);
+
+// I2C Functionality
 static esp_err_t i2c_master_init();
 static esp_err_t i2c_register_read(uint8_t, uint8_t, uint8_t *, size_t);
+
+// Interrupt Functionality
+void assign_interrupt(gpio_int_type_t, int, gpio_isr_t);
+
+// Occupancy Determination Functionality
+static void occupancy_update_start(void*);
+void resetchk_occupancy_update();
+static void occupancy_update(void*);
+
+/**
+ * @brief ISR for GPIO34 and GPIO35
+ *
+ * Recieve posedge/negedge from FSRs connected to GPIO34 and GPIO35.
+ * Debounce the transitions and execute the occupancy_update task
+ *
+ * @param  arg      void*   |   Args
+ * @return void
+ *
+ * @note
+ * @warning Keep this function as light as possible, ISRs need to be quick.
+ * @attention
+ *
+ * @authors Roshan Sundar
+ * @date Updated: 11/9/2023
+ */
+static void IRAM_ATTR gpio_34_35_isr_handler(void* arg)
+{
+    // Get # of ticks since ISR started
+    uint32_t current_time_ticks = xTaskGetTickCountFromISR();
+
+    // If FSR has changed...
+    if ((current_time_ticks - last_interrupt_time_ticks) > pdMS_TO_TICKS(FSR_DEBOUNCE_TIME)) // Debounce
+    {
+        last_interrupt_time_ticks = current_time_ticks; // Update # of ticks
+
+        // If the occupancy_update task is not running, start it
+        if (occupancy_update__task_handle == NULL)
+        {
+            xTaskCreate(occupancy_update_start, "occupancy_update_start", 2048, NULL, 10, NULL);
+        }
+        // If the occupancy_update task is in the middle of running, restart it
+        else
+        {
+            restart_occupancy_update = true;
+        }
+    }
+}
 
 void app_main(void)
 {
     //------------- ADC Setup ---------------//
-    //adc_oneshot_unit_handle_t adc1_handle = setup_ADC1();
+    adc1_handle = setup_ADC1();
     
     // Configure GPIO32 as output for transistor to control FSR circuitry
-    //gpio_set_direction(FSR_Transistor_cntrl, GPIO_MODE_OUTPUT);
+    gpio_set_direction(FSR_Transistor_cntrl, GPIO_MODE_OUTPUT);
 
     //------------- I2C Init ---------------//
+ 
     esp_err_t err = i2c_master_init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "I2C initialization error: %s", esp_err_to_name(err));
         return;
     }
-    
+
+    //------------- ISR Init ---------------//
+    gpio_install_isr_service(0);
+    assign_interrupt(GPIO_INTR_ANYEDGE, GPIO34, gpio_34_35_isr_handler);
+    assign_interrupt(GPIO_INTR_ANYEDGE, GPIO35, gpio_34_35_isr_handler);
+
     //------------- Main Loop ---------------//
     while (1)
     {
         // Turn FSR control transistor on
-        //gpio_set_level(FSR_Transistor_cntrl, 1);
-        
-        // Read FSR values
-        //int val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR1_channel);
-        //val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR2_channel);
+        gpio_set_level(FSR_Transistor_cntrl, 1);
 
         // Read AMG8833 registers
         //uint8_t data[1];
         //ESP_ERROR_CHECK(i2c_register_read(AMG8833_ADDR, 0xAA, data, 1));
         //ESP_LOGI(TAG, "Test = %X", data[0]);
 
-        // Delay for 1s
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        // Delay for 2s
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -158,7 +232,6 @@ int read_ADC_channel(int adc_unit, adc_oneshot_unit_handle_t adc_handle, adc_cha
 {
     static int adc_raw;
     ESP_ERROR_CHECK(adc_oneshot_read(adc_handle, channel, &adc_raw));
-    ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", adc_unit + 1, channel, adc_raw);
     return adc_raw;
 }
 
@@ -200,10 +273,10 @@ static esp_err_t i2c_master_init() {
 /**
  * @brief Read a register from a device on i2c bus
  *
- * @param device_addr       uint8_t     | Address of i2c device
- * @param reg_addr          uint8_t     | Address of register on i2c device
- * @param data              uint8_t*    | Pointer to read register into
- * @param len               size_t      | length in bytes to be read
+ * @param device_addr       uint8_t     |   Address of i2c device
+ * @param reg_addr          uint8_t     |   Address of register on i2c device
+ * @param data              uint8_t*    |   Pointer to read register into
+ * @param len               size_t      |   length in bytes to be read
  * @return err | esp_err_t | Error status
  *
  * @note 
@@ -218,6 +291,145 @@ static esp_err_t i2c_register_read(uint8_t device_addr, uint8_t reg_addr, uint8_
     return i2c_master_write_read_device(I2C_MASTER_NUM, device_addr, &reg_addr, 1, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
 
+/**
+ * @brief Assign interrupt to a pin.
+ *
+ * @param  interrupt_type           gpio_int_type_t     |   Type of interrupt (GPIO_INTR_{edge type})
+ * @param  pin_num                  int                 |   Pin # to assign interrupt to
+ * @param  isr_handler              gpio_isr_t          |   ISR handler function
+ * @return void
+ *
+ * @note
+ * @warning
+ * @attention
+ *
+ * @authors Roshan Sundar
+ * @date Updated: 11/7/2023
+ */
+void assign_interrupt(gpio_int_type_t interrupt_type, int pin_num, gpio_isr_t isr_handler)
+{
+    // zero-initialize the config structure.
+    gpio_config_t io_conf = {};
+
+    // interrupt of a specified type
+    io_conf.intr_type = interrupt_type;
+
+    // bit mask of the pin
+    io_conf.pin_bit_mask = 1ULL << pin_num;
+
+    // set as input mode
+    io_conf.mode = GPIO_MODE_INPUT;
+
+    // enable pull-up mode
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+
+    gpio_config(&io_conf);
+
+    // hook isr handler for a specific GPIO pin
+    gpio_isr_handler_add(pin_num, isr_handler, (void*) pin_num);
+}
+
+/**
+ * @brief Starts the occupancy_update task
+ *
+ * @param  arg      void*   |   Args
+ * @return void
+ *
+ * @note
+ * @warning
+ * @attention
+ *
+ * @authors Roshan Sundar
+ * @date Updated: 11/9/2023
+ */
+static void occupancy_update_start(void* arg)
+{
+    // Slight delay before starting the task
+    vTaskDelay(pdMS_TO_TICKS(TASK_DELETE_WAIT_TIME));
+
+    // Start the occupancy_update task
+    TaskHandle_t temp_handle = NULL;
+    xTaskCreate(occupancy_update, "occupancy_update", 2048, NULL, 10, &temp_handle);
+    occupancy_update__task_handle = temp_handle;
+
+    // Stop this task
+    vTaskDelete(NULL);
+}
+
+/**
+ * @brief Resets the occupancy_update task on flag
+ *
+ * @return void
+ *
+ * @note
+ * @warning
+ * @attention
+ *
+ * @authors Roshan Sundar
+ * @date Updated: 11/9/2023
+ */
+void resetchk_occupancy_update()
+{
+    if (restart_occupancy_update)
+    {
+        // Reset the flag
+        restart_occupancy_update = false;
+        ESP_LOGI(TAG, "Task RESTARTED!\n");
+
+        // Run the occupancy_update_start task
+        xTaskCreate(occupancy_update_start, "occupancy_update_start", 2048, NULL, 10, NULL);
+
+        // Delete the current occupancy_update task
+        TaskHandle_t temp_handle = occupancy_update__task_handle;
+        occupancy_update__task_handle = NULL;
+        vTaskDelete(temp_handle);
+    }
+}
+
+/**
+ * @brief Main task to sample sensors, prep data, and send to remote server
+ *
+ * @param  arg      void*   |   Args
+ * @return void
+ *
+ * @note
+ * @warning
+ * @attention
+ *
+ * @authors Roshan Sundar
+ * @date Updated: 11/9/2023
+ */
+static void occupancy_update(void* arg)
+{
+    // Delay slightly once task is started for values to settle down
+    ESP_LOGI(TAG, "Task Started!\n");
+    vTaskDelay(pdMS_TO_TICKS(FSR_SENSOR_SETTLE_TIME));
+
+    // Reset check
+    resetchk_occupancy_update();
+
+    // Sample the FSR values
+    for(int i = 0; i < FSR_SAMPLE_NUM; i++)
+    {
+        // Reset check
+        resetchk_occupancy_update();
+
+        // Read FSRs
+        int val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR1_channel);
+        printf("FSR1 val: %d\n", val);
+
+        val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR2_channel);
+        printf("FSR2 val: %d\n", val);
+
+        // Slight read delay
+        vTaskDelay(pdMS_TO_TICKS(FSR_READ_DELAY));
+    }
+
+    // Delete the task when it's done
+    ESP_LOGI(TAG, "Task Finished!\n");
+    occupancy_update__task_handle = NULL;
+    vTaskDelete(NULL);
+}
 
 /**
  * @brief Brief description of the function
