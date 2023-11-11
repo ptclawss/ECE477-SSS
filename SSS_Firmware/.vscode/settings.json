@@ -17,6 +17,14 @@
     "queue.h": "c",
     "soc_caps.h": "c",
     "complex": "c",
-    "format": "c"
+    "format": "c",
+    "task.h": "c",
+    "stdlib.h": "c",
+    "stdio.h": "c",
+    "i2c_functions.h": "c",
+    "constants.h": "c",
+    "gpio.h": "c",
+    "interrupt_functions.h": "c",
+    "occupancy_functions.h": "c"
   }
 }
