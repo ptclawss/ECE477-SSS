@@ -18,6 +18,12 @@
 #define I2C_MASTER_TIMEOUT_MS       1000            /*!< I2C master timeout in milliseconds */
 #define AMG8833_ADDR                0x69            /*!< AMG8833 i2c address */
 
+//------------- Coulomb Counting Constants ---------------//
+#define GPIO33 33
+#define AH_QUANTA 0.17067759
+#define FULLY_CHARGED_BATTERY_mAH 2000
+
+
 //------------- Delays and Times Constants ---------------//
 #define FSR_DEBOUNCE_TIME           300             /*!< Time for FSR to debounce */
 #define TASK_DELETE_WAIT_TIME       100             /*!< Time to wait after task is deleted */

@@ -3,13 +3,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <driver/gpio.h>
+#include <freertos/queue.h>
 // Custom Libraries
 #include "constants.h"
 #include "adc_functions.h"
 #include "i2c_functions.h"
 #include "occupancy_functions.h"
 #include "interrupt_functions.h"
+#include "coulomb_counting.h"
+
 
 //------------- Variable Defenitions ---------------//
 
@@ -30,6 +36,7 @@ void app_main(void)
     
     // Configure GPIO32 as output for transistor to control FSR circuitry
     gpio_set_direction(FSR_Transistor_cntrl, GPIO_MODE_OUTPUT);
+    gpio_set_level(FSR_Transistor_cntrl, 1);
 
     //------------- I2C Init ---------------//
  
@@ -43,21 +50,22 @@ void app_main(void)
     gpio_install_isr_service(0);
     assign_interrupt(GPIO_INTR_ANYEDGE, GPIO34, gpio_34_35_isr_handler);
     assign_interrupt(GPIO_INTR_ANYEDGE, GPIO35, gpio_34_35_isr_handler);
+    assign_interrupt(GPIO_INTR_NEGEDGE, GPIO33, coulomb_counter_isr_handler);
+
+    initBatteryInfo(FULLY_CHARGED_BATTERY_mAH);
 
     //------------- Main Loop ---------------//
     while (1)
     {
-        // Turn FSR control transistor on
-        gpio_set_level(FSR_Transistor_cntrl, 1);
-
+        /*
         // Read AMG8833 registers
-        //uint8_t data[1];
-        //ESP_ERROR_CHECK(i2c_register_read(AMG8833_ADDR, 0xAA, data, 1));
-        //ESP_LOGI(TAG, "Test = %X", data[0]);
-
-        // Delay for 2s
+        uint8_t data[1];
+        ESP_ERROR_CHECK(i2c_register_read(AMG8833_ADDR, 0xAA, data, 1));
+        ESP_LOGI(TAG, "Test = %X", data[0]);
+        */
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+
 }
 
 /**
