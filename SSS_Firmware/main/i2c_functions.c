@@ -60,3 +60,37 @@ esp_err_t i2c_register_read(uint8_t device_addr, uint8_t reg_addr, uint8_t *data
 {
     return i2c_master_write_read_device(I2C_MASTER_NUM, device_addr, &reg_addr, 1, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
 }
+
+void readThermalArray(float * thermalData) {
+    uint8_t rawData[128]; // 8x8 array, each element is two bytes
+
+    // Read 128 bytes (8x8 array) starting from register 0x80
+    ESP_ERROR_CHECK(i2c_register_read(AMG8833_ADDR, 0x80, rawData, 128));
+
+    vAMG_PUB_TMP_ConvTemperature64(rawData, thermalData);
+}
+
+short shAMG_PUB_TMP_ConvTemperature(unsigned char aucRegVal[2])
+{
+	short shVal = ((short)(aucRegVal[1] & 0x07) << 8) | aucRegVal[0];
+
+	if (0 != (0x08 & aucRegVal[1]))
+	{
+		shVal -= 2048;
+	}
+
+	shVal *= 64;
+
+	return (shVal);
+}
+
+void vAMG_PUB_TMP_ConvTemperature64(unsigned char *pucRegVal, float *pshVal)
+{
+	unsigned char ucCnt = 0;
+
+	for (ucCnt = 0; ucCnt < 64; ucCnt++)
+	{
+		short norm_val = shAMG_PUB_TMP_ConvTemperature(pucRegVal + ucCnt * 2);
+        pshVal[ucCnt] = (float) norm_val / CONVERSION_CONSTANT_C;
+	}
+}

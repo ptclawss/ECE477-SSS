@@ -84,14 +84,9 @@ void occupancy_update(void* arg)
     ESP_LOGI(TAG, "Task Started!\n");
     vTaskDelay(pdMS_TO_TICKS(FSR_SENSOR_SETTLE_TIME));
 
-    // Reset check
-    resetchk_occupancy_update();
-
     // Sample the FSR values
     for(int i = 0; i < FSR_SAMPLE_NUM; i++)
     {
-        // Reset check
-        resetchk_occupancy_update();
 
         // Read FSRs
         int val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR1_channel);
@@ -103,6 +98,18 @@ void occupancy_update(void* arg)
         // Slight read delay
         vTaskDelay(pdMS_TO_TICKS(FSR_READ_DELAY));
     }
+
+    float thermalData[64]; 
+    readThermalArray(thermalData);
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            int index = row * 8 + col;
+            ESP_LOGI("Test", "[%d, %d]: %f", row, col, thermalData[index]);
+        }
+    }
+
+    // Reset check
+    resetchk_occupancy_update();
 
     // Delete the task when it's done
     ESP_LOGI(TAG, "Task Finished!\n");

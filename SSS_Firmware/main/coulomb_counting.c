@@ -9,6 +9,8 @@ volatile long int _time, lasttime;
 volatile double mA;
 double percent_quanta;
 
+void testTask(void* arg);
+
 void IRAM_ATTR coulomb_counter_isr_handler(void *arg)
 {
     lasttime = _time;
@@ -20,6 +22,12 @@ void IRAM_ATTR coulomb_counter_isr_handler(void *arg)
     mA = 614.4 / ((_time - lasttime) / 1000000.0);
 
     xTaskCreate(testTask, "testTask", 2048, NULL, 10, NULL);
+}
+
+void testTask(void* arg)
+{
+    printf("mAh: %.2f soc: %.2f%% time: %.6fs mA: %.2f\n", battery_mAh, battery_percent, (_time - lasttime) / 1000000.0, mA);
+    vTaskDelete(NULL);
 }
 
 void initBatteryInfo(volatile double init_battery_mAH)

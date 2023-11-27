@@ -10,6 +10,7 @@
 // Custom Libraries
 #include "constants.h"
 #include "adc_functions.h"
+#include "i2c_functions.h"
 
 //------------- Global Variables ---------------//
 extern volatile TaskHandle_t occupancy_update__task_handle;     /*!< Handler for the occupancy_update task */

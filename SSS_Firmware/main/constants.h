@@ -16,13 +16,15 @@
 #define I2C_MASTER_TX_BUF_DISABLE   0               /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_RX_BUF_DISABLE   0               /*!< I2C master doesn't need buffer */
 #define I2C_MASTER_TIMEOUT_MS       1000            /*!< I2C master timeout in milliseconds */
+
+//------------- AMG8833 Constants ---------------//
 #define AMG8833_ADDR                0x69            /*!< AMG8833 i2c address */
+#define CONVERSION_CONSTANT_C       256             /*!< AMG8833 *c conversion constant */
 
 //------------- Coulomb Counting Constants ---------------//
 #define GPIO33 33
 #define AH_QUANTA 0.17067759
 #define FULLY_CHARGED_BATTERY_mAH 2000
-
 
 //------------- Delays and Times Constants ---------------//
 #define FSR_DEBOUNCE_TIME           300             /*!< Time for FSR to debounce */

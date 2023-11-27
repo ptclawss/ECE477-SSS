@@ -8,6 +8,7 @@
 #include <freertos/semphr.h>
 #include <driver/gpio.h>
 #include <freertos/queue.h>
+#include <esp_sleep.h>
 // Custom Libraries
 #include "constants.h"
 #include "adc_functions.h"
@@ -52,6 +53,7 @@ void app_main(void)
     assign_interrupt(GPIO_INTR_ANYEDGE, GPIO35, gpio_34_35_isr_handler);
     assign_interrupt(GPIO_INTR_NEGEDGE, GPIO33, coulomb_counter_isr_handler);
 
+    //------------- CC Init ---------------// 
     initBatteryInfo(FULLY_CHARGED_BATTERY_mAH);
 
     //------------- Main Loop ---------------//
@@ -65,7 +67,6 @@ void app_main(void)
         */
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
-
 }
 
 /**
