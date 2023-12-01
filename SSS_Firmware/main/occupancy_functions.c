@@ -1,9 +1,16 @@
 //------------- Imports ---------------//
 #include "occupancy_functions.h"
+#include "networking.h"
 
 //------------- Local Variables ---------------//
-// Debug String
-const static char * TAG = "OUTPUT";
+const static char * TAG = "OUTPUT"; // Debug String
+float fsr1_avg;
+float fsr2_avg;
+float thermalData[64];
+float thermalAvg;
+SemaphoreHandle_t fsrSamplingSemaphore;
+SemaphoreHandle_t thermalProcessingSemaphore;
+esp_err_t amg8833_err;
 
 //------------- Functions ---------------//
 /**
@@ -26,7 +33,7 @@ void occupancy_update_start(void* arg)
 
     // Start the occupancy_update task
     TaskHandle_t temp_handle = NULL;
-    xTaskCreate(occupancy_update, "occupancy_update", 2048, NULL, 10, &temp_handle);
+    xTaskCreate(occupancy_update, "occupancy_update", 4096, NULL, 10, &temp_handle);
     occupancy_update__task_handle = temp_handle;
 
     // Stop this task
@@ -84,29 +91,39 @@ void occupancy_update(void* arg)
     ESP_LOGI(TAG, "Task Started!\n");
     vTaskDelay(pdMS_TO_TICKS(FSR_SENSOR_SETTLE_TIME));
 
-    // Sample the FSR values
-    for(int i = 0; i < FSR_SAMPLE_NUM; i++)
+    // Create semaphores
+    fsrSamplingSemaphore = xSemaphoreCreateBinary();
+    thermalProcessingSemaphore = xSemaphoreCreateBinary();
+
+    // Create and start the FSR sampling task
+    xTaskCreate(fsrSamplingTask, "FSR Sampling Task", 2048, NULL, 5, NULL);
+
+    // Create and start the thermal processing task
+    xTaskCreate(thermalProcessingTask, "Thermal Processing Task", 2048, NULL, 5, NULL);
+
+    if ((xSemaphoreTake(fsrSamplingSemaphore, pdMS_TO_TICKS(FSR_SAMPLE_NUM * (FSR_READ_DELAY + 1))) == pdTRUE) &&
+        (xSemaphoreTake(thermalProcessingSemaphore, portMAX_DELAY) == pdTRUE)
+    )
     {
-
-        // Read FSRs
-        int val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR1_channel);
-        printf("FSR1 val: %d\n", val);
-
-        val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR2_channel);
-        printf("FSR2 val: %d\n", val);
-
-        // Slight read delay
-        vTaskDelay(pdMS_TO_TICKS(FSR_READ_DELAY));
+        printf("FSR1 Avg: %f\n", fsr1_avg);
+        printf("FSR2 Avg: %f\n", fsr2_avg);
+        printf("Thermal Avg: %f\n", thermalAvg);
     }
 
-    float thermalData[64]; 
-    readThermalArray(thermalData);
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            int index = row * 8 + col;
-            ESP_LOGI("Test", "[%d, %d]: %f", row, col, thermalData[index]);
-        }
+    if (amg8833_err != ESP_OK)
+    {
+        ESP_LOGE("ERROR", "AMG8833 Communication Failure");
     }
+
+    // Delete the semaphores
+    vSemaphoreDelete(fsrSamplingSemaphore);
+    vSemaphoreDelete(thermalProcessingSemaphore);
+
+    // Reset check
+    resetchk_occupancy_update();
+
+    // Send data
+    post_rest_function(SEATID, "DATA", fsr1_avg, fsr2_avg, thermalAvg);
 
     // Reset check
     resetchk_occupancy_update();
@@ -114,5 +131,66 @@ void occupancy_update(void* arg)
     // Delete the task when it's done
     ESP_LOGI(TAG, "Task Finished!\n");
     occupancy_update__task_handle = NULL;
+    vTaskDelete(NULL);
+}
+
+void fsrSamplingTask(void* arg)
+{
+    // Sample the FSRs
+    for(int i = 0; i < FSR_SAMPLE_NUM; i++)
+    {
+        float val = read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR1_channel);
+        fsr1_avg += val;
+        fsr2_avg += read_ADC_channel(ADC_UNIT_1, adc1_handle, FSR2_channel);
+        vTaskDelay(pdMS_TO_TICKS(FSR_READ_DELAY));
+    }
+
+    // Average the FSRs
+    fsr1_avg = fsr1_avg / FSR_SAMPLE_NUM;
+    fsr2_avg = fsr2_avg / FSR_SAMPLE_NUM;
+
+    // Give the semaphore to signal completion
+    xSemaphoreGive(fsrSamplingSemaphore);
+
+    // Delete the task when it's done
+    vTaskDelete(NULL);
+}
+
+void thermalProcessingTask(void* arg)
+{
+    thermalAvg = 0;
+    
+    // Read and average thermal camera
+    while(1)
+    {
+        bool reread = false;
+
+        amg8833_err = readThermalArray(thermalData);
+        if (amg8833_err != ESP_OK) {break;}
+
+        for (int i = 0; i < PIXELS_NUM; i++)
+        {
+            // Check for anomalous negative value
+            if (thermalData[i] < 0)
+            {
+                reread = true;
+                break;
+            }
+            else {thermalAvg += thermalData[i];}
+        }
+
+        if (reread == false) {break;} // If no anomalous value read, break
+        else
+        {
+            // Wait a bit before re-reading
+            vTaskDelay(pdMS_TO_TICKS(AMG8833_REREAD_WAIT_TIME));
+        }
+    }
+    thermalAvg = thermalAvg / PIXELS_NUM;
+
+    // Signal completion of thermal data processing
+    xSemaphoreGive(thermalProcessingSemaphore);
+
+    // Delete the task when it's done
     vTaskDelete(NULL);
 }

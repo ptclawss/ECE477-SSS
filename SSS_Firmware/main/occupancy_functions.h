@@ -5,6 +5,7 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "esp_log.h"
 
 // Custom Libraries
@@ -20,3 +21,5 @@ extern bool restart_occupancy_update;                           /*!< Status flag
 void occupancy_update_start(void*);
 void resetchk_occupancy_update();
 void occupancy_update(void*);
+void fsrSamplingTask(void* arg);
+void thermalProcessingTask(void* arg);

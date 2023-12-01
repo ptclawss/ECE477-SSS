@@ -26,6 +26,7 @@
     "gpio.h": "c",
     "interrupt_functions.h": "c",
     "occupancy_functions.h": "c",
-    "string.h": "c"
+    "string.h": "c",
+    "esp_sleep.h": "c"
   }
 }

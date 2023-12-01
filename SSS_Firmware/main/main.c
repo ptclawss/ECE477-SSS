@@ -16,6 +16,7 @@
 #include "occupancy_functions.h"
 #include "interrupt_functions.h"
 #include "coulomb_counting.h"
+#include "networking.h"
 
 
 //------------- Variable Defenitions ---------------//
@@ -32,6 +33,13 @@ bool restart_occupancy_update = false;                          /*!< Global Var 
 
 void app_main(void)
 {
+    //------------- Networking ---------------//
+    nvs_flash_init();
+    wifi_connection();
+
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    printf("WIFI was initiated ...........\n\n");
+
     //------------- ADC Setup ---------------//
     adc1_handle = setup_ADC1();
     
@@ -59,12 +67,6 @@ void app_main(void)
     //------------- Main Loop ---------------//
     while (1)
     {
-        /*
-        // Read AMG8833 registers
-        uint8_t data[1];
-        ESP_ERROR_CHECK(i2c_register_read(AMG8833_ADDR, 0xAA, data, 1));
-        ESP_LOGI(TAG, "Test = %X", data[0]);
-        */
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
