@@ -1,0 +1,161 @@
+[
+  {
+    "row": "A",
+    "seats": [
+      {
+        "seat_id": "A1",
+        "occupancy": false
+      },
+      {
+        "seat_id": "A2",
+        "occupancy": true
+      },
+      {
+        "seat_id": "A3",
+        "occupancy": true
+      },
+      {
+        "seat_id": "A4",
+        "occupancy": true
+      },
+      {
+        "seat_id": "A5",
+        "occupancy": false
+      },
+      {
+        "seat_id": "A6",
+        "occupancy": true
+      },
+      {
+        "seat_id": "A7",
+        "occupancy": false
+      },
+      {
+        "seat_id": "A8",
+        "occupancy": true
+      },
+      {
+        "seat_id": "A9",
+        "occupancy": false
+      },
+      {
+        "seat_id": "A10",
+        "occupancy": true
+      },
+      {
+        "seat_id": "A11",
+        "occupancy": false
+      },
+      {
+        "seat_id": "A12",
+        "occupancy": true
+      }
+    ]
+  },
+  {
+    "row": "B",
+    "seats": [
+      {
+        "seat_id": "B1",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B2",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B3",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B4",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B5",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B6",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B7",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B8",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B9",
+        "occupancy": false
+      },
+      {
+        "seat_id": "B10",
+        "occupancy": true
+      },
+      {
+        "seat_id": "B11",
+        "occupancy": true
+      },
+      {
+        "seat_id": "B12",
+        "occupancy": true
+      }
+    ]
+  },
+  {
+    "row": "C",
+    "seats": [
+      {
+        "seat_id": "C1",
+        "occupancy": false
+      },
+      {
+        "seat_id": "C2",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C3",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C4",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C5",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C6",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C7",
+        "occupancy": false
+      },
+      {
+        "seat_id": "C8",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C9",
+        "occupancy": false
+      },
+      {
+        "seat_id": "C10",
+        "occupancy": true
+      },
+      {
+        "seat_id": "C11",
+        "occupancy": false
+      },
+      {
+        "seat_id": "C12",
+        "occupancy": true
+      }
+    ]
+  }
+]

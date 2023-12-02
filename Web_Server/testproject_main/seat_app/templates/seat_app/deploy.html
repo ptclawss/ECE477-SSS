@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seat Availability</title>
+
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 80vh;
+            margin: 0;
+            flex-direction: column; /* Display rows vertically */
+        }
+
+        .logo {
+            background-image: url("{% static 'seat_app/images/purdue_logo.png' %}");
+            background-size: contain; /* Adjust as needed */
+            background-repeat: no-repeat;
+            background-position: top center; /* Center the logo at the top of the container */
+            width: 900px; /* Adjust the width as needed */
+            height: 270px; /* Adjust the height as needed */
+            margin-top: 90px; /* Adjust the margin from the top as needed */
+            margin-bottom: 130px;
+            margin-left: 100px;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px; /* Add some margin between rows */
+        }
+
+        .row-label {
+            margin-right: 100px;
+        }
+
+        .seat {
+            width: 60px;
+            height: 60px;
+            text-align: center;
+            line-height: 60px;
+            font-size: 22px;
+            border: 1px solid #ddd;
+            background-color: #f5f5f5;
+            margin-right: 5px; /* Add some margin between seats */
+            margin-bottom: 70px; /* Add margin below each seat */
+        }
+    </style>
+
+    <!-- Link to external JavaScript file -->
+    <script src="{% static 'seat_app/seat_status.js' %}"></script>
+
+    <!-- Empty link tag to indicate no favicon -->
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+</head>
+<body>
+    <!-- <div class="logo"></div> -->
+    <div class="logo"></div>
+    <div id="seats-container"></div>
+</body>
+</html>
